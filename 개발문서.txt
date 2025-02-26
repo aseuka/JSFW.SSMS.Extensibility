@@ -1,0 +1,156 @@
+## VS를 관리자모드로 실행하여 솔루션을 오픈한다.
+## 2016버젼으로 먼저 만든 후 2014와 2017을 프로젝트파일을 다시 생성한다.
+   - 결과 그리드 컨트롤의 dll 참조 문제로 각각 별도 생성한다.
+		#region SQL 결과 그리드 접근 관련 
+		// 참조 : http://www.tsingfun.com/html/2015/dev_0728/478.html
+		//C:\Windows\assembly\GAC_MSIL\Microsoft.SqlServer.GridControl\12.0.0.0__89845dcd8080cc91\Microsoft.SqlServer.GridControl.dll
+		//C:\Program Files\Common Files\microsoft shared\SQL Server Developer Tools\120\Microsoft.SqlServer.GridControl.dll
+		using Microsoft.SqlServer.Management.UI.Grid; // <-- SSMS 버젼과 맞아야됨... ( 이름이 동일한  A.dll과 A.dll에 Grid가 있다고 뜨면서 캐스팅 안됨...)
+		//C:\Program Files\Microsoft Visual Studio 12.0\VSSDK\VisualStudioIntegration\Common\Assemblies\v2.0\Microsoft.VisualStudio.Shell.Interop.dll
+		using Microsoft.VisualStudio.Shell.Interop;
+		//C:\Program Files\Microsoft Visual Studio 12.0\VSSDK\VisualStudioIntegration\Common\Assemblies\v2.0\Microsoft.VisualStudio.TextManager.Interop.dll
+		// SqlScriptEditorControl 사용을 위한 참조 dll
+		#endregion SQL 결과 그리드 접근 관련
+
+   - 디버깅!
+		### 중요!! 
+			: 패키지 디버깅중 에러가 발생하여 안풀리는 경우... 
+			>> C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Visual Studio 2017\Microsoft Visual Studio SDK\Tools\
+					"Visual Studio 2017 실험적 인스턴스 다시 설정" 을 이용하여 초기화 시켜줌.
+
+1. 확장 프로젝트 생성 
+2. VSPackage 추가
+3. SkipLoading.{2016}.reg 레지스트리 내용중 Package ID를 변경. 
+--------------------------------
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\SQL Server Management Studio\13.0\Packages\{  Package ID }]
+"SkipLoading"=dword:00000001
+--------------------------------
+4. SSMS에 맞는 .reg파일을 실행하여 레지스트리에 해당 패키지정보 등록! ( .reg 파일 더블클릭 )
+
+5. SSMS 관련 dll 참조 : 각 버젼별로 프로젝트(.proj)를 별도생성한다.
+	C:\Program Files (x86)\Microsoft SQL Server\{ SSMS 버젼번호 }\Tools\Binn\ManagementStudio\Microsoft.SqlServer.GridControl.dll
+	C:\Program Files (x86)\Microsoft SQL Server\{ SSMS 버젼번호 }\Tools\Binn\ManagementStudio\Microsoft.SqlServer.RegSvrEnum.dll
+	C:\Program Files (x86)\Microsoft SQL Server\{ SSMS 버젼번호 }\Tools\Binn\ManagementStudio\Microsoft.SqlServer.SqlTools.VSIntegration.dll
+	C:\Program Files (x86)\Microsoft SQL Server\{ SSMS 버젼번호 }\Tools\Binn\ManagementStudio\ObjectExplorer.dll
+	C:\Program Files (x86)\Microsoft SQL Server\{ SSMS 버젼번호 }\Tools\Binn\ManagementStudio\Extensions\Application\SQLEditors.dll
+	C:\Program Files (x86)\Microsoft SQL Server\{ SSMS 버젼번호 }\Tools\Binn\ManagementStudio\SqlPackageBase.dll
+	C:\Program Files (x86)\Microsoft SQL Server\{ SSMS 버젼번호 }\Tools\Binn\ManagementStudio\SqlWorkbench.Interfaces.dll
+
+	// 그리드( 객체 얻을때 타입 버젼이 맞지 않아 null값 처리됨. 2024-06-08 )	
+	{해당SSMS의 실행위치에 확장디렉토리}\IDE\Extensions\Application\SQLEditors.dll
+  
+6. Commands기능을 VS 확장기능 구현과 다르게 등록한다.
+    # 아래는 VS와 동일하게 등록
+		# 도구
+			- 컬럼정렬
+			- 개체 찾기
+			- 포매터 설정
+			- 포맷터
+		# VS와 다른 기능
+			- Header 복사
+			- 틀고정
+			- 컬럼검색
+			- 조건만들기
+
+## 개발시 알아야 할 내용.
+	1. VSPackage 클래스에 추가될 속성
+		//[ProvideAutoLoad(UIContextGuids.SolutionExists)]
+		//이 어트리뷰트가 있으면 ssms실행즉시 로딩된다.
+
+    2. VSPackage.Initialize()
+       {
+           base.Initialize(); 
+           DelayAddSkipLoadingReg();  // 이게 있어야 SSMS에 로딩이 됨. ( 어렵게 알아냈다... https://ssmsschemafolders.codeplex.com/ )
+       }
+        
+       private void AddSkipLoadingReg()
+       {
+           var myPackage = this.UserRegistryRoot.CreateSubKey(@"Packages\{" + VSPackage.PackageGuidString + "}");
+           myPackage.SetValue("SkipLoading", 1);
+       }
+
+       private void DelayAddSkipLoadingReg()
+       {
+           var delay = new Timer(); 
+           delay.Tick += delegate (object o, EventArgs e)
+           {
+               delay.Stop();
+               AddSkipLoadingReg();
+           };
+           delay.Interval = 1000;
+           delay.Start();
+       }
+
+	3. 해당 확장프로그램의 dll 위치 폴더를 생성한다
+		 C:\Program Files (x86)\Microsoft SQL Server\130\Tools\Binn\ManagementStudio\Extensions\{ 확장프로그램폴더 }
+			- 배치될 dll은 
+				= extension.vsixmanifest
+				= JSFW.SSMS.Extensibility.dll [해당 확장프로그램 dll, 아래 xcopy대상]
+				= JSFW.SSMS.Extensibility.pkgdef
+				= JSFW.SSMS.Extensibility.vsix [ 필요는 없어보이는데... 혹시 모르니. ]
+
+		ver 2018은 C:\Program Files (x86)\Microsoft SQL Server Management Studio 18\Common7\IDE\Extensions
+
+
+	  
+	4. 프로젝트의 빌드이벤트에 xcopy를 추가한다. 
+	   > 첫 빌드시 debug폴더내에 dll과 파일들을 반드시 1회 대상 폴더에 복사해준다. ( 없으면 xcopy 에러가... 또는 빌드이벤트 등록전에 한번 빌드하고 복사해둔다. )
+	     - 아래 xcopy는 dll 파일 하나만 복사해서 옮긴다. 
+		 xcopy "$(TargetPath)" "C:\Program Files (x86)\Microsoft SQL Server\130\Tools\Binn\ManagementStudio\Extensions\{JSFW.SSMS.Extensibility}\$(TargetFileName)" /y /r 
+
+    5. 디버그 > 시작외부프로그램을 ssms로 변경, 명령줄 인수 삭제.  ( 디버깅을 위해 )
+		 C:\Program Files (x86)\Microsoft SQL Server\130\Tools\Binn\ManagementStudio\ssms.exe 
+
+    6. 디버깅 옵션 ( Ctrl + Alt + E ) 
+			- Managed Debugging Assinstants
+				- PinvokeStackImbalance 체크해제
+
+	7. 메뉴 GUID를 알고 싶어지면 https://blogs.msdn.microsoft.com/dr._ex/2007/04/17/using-enablevsiplogging-to-identify-menus-and-commands-with-vs-2005-sp1/
+		
+			Windows Registry Editor Version 5.00
+			[HKEY_CURRENT_USER\Software\Microsoft\VisualStudio\8.0\General]
+			"EnableVSIPLogging"=dword:00000001
+ 
+			(Hint #1, copy the above into an “EnableVSIPLogging.reg” file. And then dblclick the file to merge this value into the registry)
+
+
+	# 설정중.. 오브젝트 파인더의 - Ctrl + C에서의 에러관련 
+		//https://social.msdn.microsoft.com/Forums/sqlserver/en-US/6ddd3044-0c44-4b74-80d2-bf5342615d69/cant-copy-text-when-in-findreplace-dialog-ssms-2016?forum=sqltools
+		해결방법 : 2014 년부터 16.5 년까지 모든 SSMS 릴리스에서 동일한 동작을 관찰했습니다. 
+		          Visual Studio Isolated Shell (SSMS에서 사용됨)에서 무언가 변경된 것 같습니다. 
+				  이 오류 메시지를 표시하지 않으려면 SSMS를 열고 
+				      도구 / 옵션 / 환경 / 문서로 이동 
+				          '솔루션 탐색기에 기타 파일 표시'(첨부 참조)를 선택 취소
+				  하고 SSMS를 다시 시작하십시오. 
+				  이제 찾기 / 바꾸기 대화 상자에서 다시 복사 / 잘라낼 수 있어야합니다.
+
+
+	# 오류 발견 : 실행중 도킹창을 드래그 드랍하여 프로그램에 도킹할때 강제종료됨.
+		   원인 : ssms 18.3으로 실행했을때 에러 - 18.5에서 개선되었다는 글을 보고 최신버젼으로 재설치
+				  18.8버젼이라서 닷넷버젼을 4.72로 변경 후 재컴파일
+
+
+	# SSMS의 2020 버젼으로 업그레이드.
+		1. 빌드에 [VSIX]탭에서 Copy VSIX Content to the following location: 에 SSMS 2020이 설치된 확장 디렉토리에 "SSMS2020" 디렉토리 지정!! 
+		그러면 자동으로 복사된다 (빌드 이벤트 안써도 된다)
+		예) I:\SSMS20\Common7\IDE\Extensions\ssms2020
+		2. 참조경로 추가 
+			I:\SSMS20\Common7\IDE\
+			I:\SSMS20\Common7\IDE\Extensions\Application\
+		3. SkipLoading.2020.reg 레지스트리 파일 추가
+			
+			Windows Registry Editor Version 5.00
+			[HKEY_CURRENT_USER\Software\Microsoft\SQL Server Management Studio\20.0_IsoShell\Packages\{f1536ef8-92ec-443c-9ed7-fdadf150da82}]
+			"SkipLoading"=dword:00000001
+
+			** 여기서 {f1536ef8-92ec-443c-9ed7-fdadf150da82}는 빌드를 하면 VSIX 배포된 곳에서 "JSFW.SSMS.Extensibility.pkgdef" 파일이 있다. 
+			   이 파일을 열어보면 
+			   "CodeBase"="$PackageFolder$\JSFW.SSMS.Extensibility.dll"
+				[$RootKey$\AutoLoadPackages\{f1536ef8-92ec-443c-9ed7-fdadf150da82}]
+				"{e499b659-abb0-4651-a054-3deb4f5b6541}"=dword:00000002
+			  이런 식으로 써있다. AutoLoadPackages 다음 GUID를 복사해서 사용하니 ssms에서도 올라오더라. ( 임의로 넣었더니 기존과 다르게 안올라왔다. )
+
+
+

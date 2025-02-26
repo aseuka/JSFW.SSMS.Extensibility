@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.34916.146
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "문서", "문서", "{52A1A65C-1814-4E2C-9EED-F69978D76660}"
+	ProjectSection(SolutionItems) = preProject
+		개발문서.txt = 개발문서.txt
+		해결방법] ssms 창 도킹할때 프로그램다운되는 현상 .txt = 해결방법] ssms 창 도킹할때 프로그램다운되는 현상 .txt
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JSFW.SSMS2020.Extensibility", "JSFW.SSMS.Extensibility\JSFW.SSMS2020.Extensibility.csproj", "{D05FCA83-DA40-4316-912F-09CDA833A190}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D05FCA83-DA40-4316-912F-09CDA833A190}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D05FCA83-DA40-4316-912F-09CDA833A190}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D05FCA83-DA40-4316-912F-09CDA833A190}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D05FCA83-DA40-4316-912F-09CDA833A190}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {611DA093-A213-407C-94CD-9EF4A6E9B5B4}
+	EndGlobalSection
+EndGlobal

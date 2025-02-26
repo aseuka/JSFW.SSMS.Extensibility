@@ -1,0 +1,19 @@
+VinnieAmir-0621 답변 · 10 시간 전
+고치다:
+
+모든 SSMS 창을 닫고 SQL Mgt Studio EXE 파일을 찾으십시오.
+
+C : \ Program Files (x86) \ Microsoft SQL Server Management Studio 18 \ Common7 \ IDE
+
+찾을 수없는 경우 SSMS를 여는 데 사용하는 바로 가기를 마우스 오른쪽 단추로 클릭하고 속성> 파일 위치 열기로 이동합니다.
+
+이 파일을 찾으면 "Ssms.exe.config"라는 파일도 찾아서 관리자 모드에서 메모장을 열고이 파일을 편집합니다.
+
+그런 다음 <AppContextSwitchOverrides>라는 xml 태그를 찾아야하며 다음을 정확히 APPEND (대체 아님)해야합니다.
+
+; Switch.System.Windows.Interop.MouseInput.OptOutOfMoveToChromedWindowFix = true; Switch.System.Windows.Interop.MouseInput.DoNotOptOutOfMoveToChromedWindowFix = true
+
+그리고 그게 다입니다. 이제이 불쾌한 충돌을 피할 수 있습니다.
+
+https://support.microsoft.com/en-us/topic/february-9-2021-kb4601060-cumulative-update-for-net-framework-3-5-and-4-7-2-for-windows- 10-version-1809-and-windows-server-version-2019-b240d07e-639f-d708-98c9-0cbe443176aa
+
