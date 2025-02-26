@@ -1,10 +1,41 @@
 # SSMS 2020으로 업데이트..
  기존 2018은 git이 꼬인건지.. 변환 후 연결이 안되서 삭제후 다시 올림. 
 
- . 오브젝트 찾기에서 Control + C 안되는 현상에 대하여 조치방법.
+ - 오브젝트 찾기에서 Control + C 안되는 현상에 대하여 조치방법.
    도구 / 옵션 / 환경 / 문서로 이동 
 			     '솔루션 탐색기에 기타 파일 표시'(첨부 참조)를 선택 취소
 			하고 SSMS를 다시 시작하십시오. 
+
+- SSMS 위치 지정. ( 기존 빌드 이벤트 삭제 )
+![image](https://github.com/user-attachments/assets/9bcac9ba-956e-485d-84eb-a5efed0a78ac)
+
+- 오류 발견 : 실행중 도킹창을 드래그 드랍하여 프로그램에 도킹할때 강제종료됨.
+		   원인 : ssms 18.3으로 실행했을때 에러 - 18.5에서 개선되었다는 글을 보고 최신버젼으로 재설치
+				  18.8버젼이라서 닷넷버젼을 4.72로 변경 후 재컴파일
+
+- SSMS의 2020 버젼으로 업그레이드.
+		1. 빌드에 [VSIX]탭에서 Copy VSIX Content to the following location: 에 SSMS 2020이 설치된 확장 디렉토리에 "SSMS2020" 디렉토리 지정!! 
+		그러면 자동으로 복사된다 (빌드 이벤트 안써도 된다)
+		예) I:\SSMS20\Common7\IDE\Extensions\ssms2020
+		2. 참조경로 추가 
+			I:\SSMS20\Common7\IDE\
+			I:\SSMS20\Common7\IDE\Extensions\Application\
+		3. SkipLoading.2020.reg 레지스트리 파일 추가
+			
+			Windows Registry Editor Version 5.00
+			[HKEY_CURRENT_USER\Software\Microsoft\SQL Server Management Studio\20.0_IsoShell\Packages\{f1536ef8-92ec-443c-9ed7-fdadf150da82}]
+			"SkipLoading"=dword:00000001
+
+			** 여기서 {f1536ef8-92ec-443c-9ed7-fdadf150da82}는 빌드를 하면 VSIX 배포된 곳에서 "JSFW.SSMS.Extensibility.pkgdef" 파일이 있다. 
+			   이 파일을 열어보면 
+			   "CodeBase"="$PackageFolder$\JSFW.SSMS.Extensibility.dll"
+				[$RootKey$\AutoLoadPackages\{f1536ef8-92ec-443c-9ed7-fdadf150da82}]
+				"{e499b659-abb0-4651-a054-3deb4f5b6541}"=dword:00000002
+			  이런 식으로 써있다. AutoLoadPackages 다음 GUID를 복사해서 사용하니 ssms에서도 올라오더라. ( 임의로 넣었더니 기존과 다르게 안올라왔다. )
+
+
+
+   
 
 # JSFW.SSMS.Extensibility
 SSMS 2018 확장 (( 💙 내가 가장 애정을 가진 프로그램 중 하나! 💙 ))
