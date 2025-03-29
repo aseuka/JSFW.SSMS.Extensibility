@@ -152,5 +152,6 @@ Windows Registry Editor Version 5.00
 				"{e499b659-abb0-4651-a054-3deb4f5b6541}"=dword:00000002
 			  이런 식으로 써있다. AutoLoadPackages 다음 GUID를 복사해서 사용하니 ssms에서도 올라오더라. ( 임의로 넣었더니 기존과 다르게 안올라왔다. )
 
-
+	# 테이블 및 컬럼 설명 수정 기능 추가
+		MS_DESCRIPTION 변경 기능 수정.
 

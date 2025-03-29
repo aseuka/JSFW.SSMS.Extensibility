@@ -710,7 +710,7 @@ order by case type when 'U' then 1
                 tableInfomationViewForm.StartPosition = FormStartPosition.CenterScreen;
                 tableInfomationViewForm.FormBorderStyle = FormBorderStyle.SizableToolWindow;
                 tableInfomationViewForm.ShowInTaskbar = false;                
-                tableInfomationViewForm.DataBind(objectID, objectName, ds);
+                tableInfomationViewForm.DataBind(objectID, objectName, ds, sqlConnectionString);
                 tableInfomationViewForm.WindowState = FormWindowState.Normal;
                 tableInfomationViewForm.Show(this);                
                 tableInfomationViewForm.BringToFront();
