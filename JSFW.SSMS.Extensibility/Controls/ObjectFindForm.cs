@@ -21,6 +21,7 @@ using Microsoft.SqlServer.Management.Smo;
 using Microsoft.SqlServer.Management.SqlParser.Metadata;
 using JSFW.SSMS.Extensibility.Controls;
 using System.Collections;
+using System.Windows.Input;
 
 namespace JSFW
 {
@@ -390,8 +391,8 @@ namespace JSFW
                                        //CreatedWindow.Caption = string.Format(string.Format("S:{0},U:{1},P:{2},D:{3}", conn[0].ServerName, conn[0].UserName, conn[0].Password, conn[0].AdvancedOptions[6]));
                                        //string sqlConnectionString = string.Format(string.Format("Server={0};DataBase={3};UID={1};PWD={2};", serverName, userID, password, databaseName));
 
-            sqlConnectionString = string.Format(string.Format("Server={0};DataBase={1};UID={2};PWD={3};",
-                conn.ServerName, conn.AdvancedOptions["DATABASE"], conn.UserName, conn.Password));
+            sqlConnectionString = string.Format("Server={0};DataBase={1};UID={2};PWD={3};",
+                conn.ServerName, conn.AdvancedOptions["DATABASE"], conn.UserName, conn.Password);
 
             // AuthenticationType = 0 : Windows 인증
             // AuthenticationType = 1 : SQL Server Authentication
@@ -490,14 +491,6 @@ order by case type when 'U' then 1
             cboFindText.Text = currentSelectedQuery.Trim();
             if (string.IsNullOrEmpty(currentSelectedQuery.Trim()) == false)
                 btnFind.PerformClick();
-        }
-
-        private void textBox1_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Tab)
-            {
-                btnFind.PerformClick();
-            }
         }
 
         private void btnColumnInfo_Click(object sender, EventArgs e)
@@ -777,26 +770,38 @@ ORDER BY C.COLID
 ";
         }
 
-//        private string UpdateExtendedScript(string colName, string dbdesc, string txt, string schema = "dbo")
-//        {
-//            /*
-//EXEC SP_ADDEXTENDEDPROPERTY 'MS_Description', @DESCRIPTION, 'user', @DB_USER, 'table', @TABLE_NAME, 'column', @COLUMN_NAME       -- 컬럼 정보 추가    
-//EXEC SP_UPDATEEXTENDEDPROPERTY 'MS_Description', @DESCRIPTION, 'user', @DB_USER, 'table', @TABLE_NAME, 'column', @COLUMN_NAME    -- 컬럼 정보 수정
+        private void cboFindText_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
+        { 
+            if (e.KeyCode == Keys.C && Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control)
+            {
+                var text = cboFindText.Text;
+                if (!string.IsNullOrEmpty(text))
+                {
+                    Clipboard.SetText(text);
+                }
+            }
+        }
 
-//EXEC SP_ADDEXTENDEDPROPERTY  @NAME=N'MS_DESCRIPTION', @VALUE=N'지급조건', @LEVEL0TYPE=N'SCHEMA', @LEVEL0NAME=N'CubeCon',  @LEVEL1TYPE=N'TABLE', @LEVEL1NAME=N'TSAP_VENDOR', @LEVEL2TYPE=N'COLUMN', @LEVEL2NAME=N'TERMS'
+        //        private string UpdateExtendedScript(string colName, string dbdesc, string txt, string schema = "dbo")
+        //        {
+        //            /*
+        //EXEC SP_ADDEXTENDEDPROPERTY 'MS_Description', @DESCRIPTION, 'user', @DB_USER, 'table', @TABLE_NAME, 'column', @COLUMN_NAME       -- 컬럼 정보 추가    
+        //EXEC SP_UPDATEEXTENDEDPROPERTY 'MS_Description', @DESCRIPTION, 'user', @DB_USER, 'table', @TABLE_NAME, 'column', @COLUMN_NAME    -- 컬럼 정보 수정
 
-//             */
-//            string script = "EXEC";
-//            if (txt == "추가")
-//            {
-//                script += $@" SP_ADDEXTENDEDPROPERTY @NAME=N'MS_DESCRIPTION', @VALUE=N'{dbdesc.Trim()}', @LEVEL0TYPE=N'SCHEMA', @LEVEL0NAME=N'{schema}', @LEVEL1TYPE=N'TABLE', @LEVEL1NAME=N'{txtFindTbName.Text.Trim()}', @LEVEL2TYPE=N'COLUMN', @LEVEL2NAME=N'{colName.Trim()}'";
-//            }
-//            else
-//            {
-//                script += $@" SP_UPDATEEXTENDEDPROPERTY @NAME=N'MS_DESCRIPTION', @VALUE=N'{dbdesc.Trim()}', @LEVEL0TYPE=N'SCHEMA', @LEVEL0NAME=N'{schema}', @LEVEL1TYPE=N'TABLE', @LEVEL1NAME=N'{txtFindTbName.Text.Trim()}', @LEVEL2TYPE=N'COLUMN', @LEVEL2NAME=N'{colName.Trim()}'";
-//            }
-//            return script;
-//        }
+        //EXEC SP_ADDEXTENDEDPROPERTY  @NAME=N'MS_DESCRIPTION', @VALUE=N'지급조건', @LEVEL0TYPE=N'SCHEMA', @LEVEL0NAME=N'CubeCon',  @LEVEL1TYPE=N'TABLE', @LEVEL1NAME=N'TSAP_VENDOR', @LEVEL2TYPE=N'COLUMN', @LEVEL2NAME=N'TERMS'
+
+        //             */
+        //            string script = "EXEC";
+        //            if (txt == "추가")
+        //            {
+        //                script += $@" SP_ADDEXTENDEDPROPERTY @NAME=N'MS_DESCRIPTION', @VALUE=N'{dbdesc.Trim()}', @LEVEL0TYPE=N'SCHEMA', @LEVEL0NAME=N'{schema}', @LEVEL1TYPE=N'TABLE', @LEVEL1NAME=N'{txtFindTbName.Text.Trim()}', @LEVEL2TYPE=N'COLUMN', @LEVEL2NAME=N'{colName.Trim()}'";
+        //            }
+        //            else
+        //            {
+        //                script += $@" SP_UPDATEEXTENDEDPROPERTY @NAME=N'MS_DESCRIPTION', @VALUE=N'{dbdesc.Trim()}', @LEVEL0TYPE=N'SCHEMA', @LEVEL0NAME=N'{schema}', @LEVEL1TYPE=N'TABLE', @LEVEL1NAME=N'{txtFindTbName.Text.Trim()}', @LEVEL2TYPE=N'COLUMN', @LEVEL2NAME=N'{colName.Trim()}'";
+        //            }
+        //            return script;
+        //        }
     }
 
     static class ControlSync

@@ -18,6 +18,12 @@ using System.Collections.Generic;
 using Microsoft.SqlServer.Management.UI.Grid;
 using System.IO;
 using System.Drawing;
+using EnvDTE;
+using LiteDB;
+using EnvDTE80;
+using System.Net.Sockets;
+using System.Net;
+using Microsoft.SqlServer.Management.UI.VSIntegration;
 //C:\Program Files (x86)\Microsoft SQL Server Management Studio 18\Common7\IDE\Ssms.exe
 
 //C:\Program Files (x86)\Microsoft SQL Server\140\Tools\Binn\ManagementStudio\Ssms.exe
@@ -104,8 +110,10 @@ namespace JSFW.SSMS.Extensibility
         /// </summary>
         protected override void Initialize()
         {
-            base.Initialize(); 
-             
+            base.Initialize();
+
+            ThreadHelper.ThrowIfNotOnUIThread();
+
             JSFW.SSMS.Extensibility.Cmds.ColumnAlign.Initialize(this);
             JSFW.SSMS.Extensibility.Cmds.ObjectFinder.Initialize(this);            
             IncludeCommands();
@@ -132,6 +140,8 @@ namespace JSFW.SSMS.Extensibility
 
         private void IncludeCommands()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
             var _applicationObject = ServiceProvider.GetService(typeof(EnvDTE.DTE)) as EnvDTE80.DTE2;
 
             // TextEdit에서 컨텍스트 메뉴가 떠야 할때!   
@@ -195,18 +205,168 @@ namespace JSFW.SSMS.Extensibility
             ConditionCreateButton.Caption = "조건문 생성";
             ConditionCreateButton.Style = MsoButtonStyle.msoButtonIconAndCaption;
             ConditionCreateButton.Click += ConditionCreateButton_Click;
-
+            
             // 쿼리 실행 전 > 이벤트! ( 툴바에 [실행!] 버튼 명령관련!!
-            //if (_applicationObject.Events.CommandEvents["{52692960-56BC-4989-B5D3-94C47A513E8D}", 1] != null)
-            //{
-            //    //    _applicationObject.Events.CommandEvents.BeforeExecute += VSPackage_BeforeExecute;
-            //    //    _applicationObject.Events.CommandEvents.AfterExecute += VSPackage_AfterExecute;
-            //}
+            // Name=Query.Execute, ID=1, Guid={52692960-56BC-4989-B5D3-94C47A513E8D}, Key=DAX 쿼리 편집기::F5 || DAX 쿼리 편집기::Ctrl+E || DMX 쿼리 편집기::F5 || DMX 쿼리 편집기::Ctrl+E || 전역::Alt+X || MDX 쿼리 편집기::F5 || MDX 쿼리 편집기::Ctrl+E || SQL 쿼리 편집기::F5 || SQL 쿼리 편집기::Ctrl+E || XMLA 쿼리 편집기::F5 || XMLA 쿼리 편집기::Ctrl+E || 
+            if (_applicationObject.Events.CommandEvents["{52692960-56BC-4989-B5D3-94C47A513E8D}", 1] != null)
+            {
+                if (ExecuteCommandEvents != null)
+                {
+                    ExecuteCommandEvents.BeforeExecute -= VSPackage_BeforeExecute;
+                    //ExecuteCommandEvents.AfterExecute -= VSPackage_AfterExecute;
+                }
+                ExecuteCommandEvents = _applicationObject.Events.CommandEvents["{52692960-56BC-4989-B5D3-94C47A513E8D}", 1];
+                ExecuteCommandEvents.BeforeExecute += VSPackage_BeforeExecute;
+                //ExecuteCommandEvents.AfterExecute += VSPackage_AfterExecute;
+            }
             // 커맨드 종류 알아내는 방법.
-            //_applicationObject.Events.DocumentEvents.DocumentOpened += DocumentEvents_DocumentOpened;
             ResetKeyBinding_QuickLunch();
+
+            //_applicationObject.Events.DocumentEvents.DocumentOpened -= DocumentEvents_DocumentOpened;
+            //_applicationObject.Events.DocumentEvents.DocumentOpened += DocumentEvents_DocumentOpened;
+             
+            _applicationObject.Events.WindowEvents.WindowActivated += (win1, win2) =>
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                if (win1?.Document != null)
+                {
+                    // 문서가 활성화됨
+                    TextDocument textDoc = win1.Document.Object("TextDocument") as TextDocument;
+                    if (textDoc != null)
+                    {
+                        if(CurrentTextEditorEvents != null) CurrentTextEditorEvents.LineChanged -= TextEditorEvents_LineChanged;
+                        CurrentTextEditorEvents = _applicationObject.Events.TextEditorEvents[textDoc];
+                        CurrentTextEditorEvents.LineChanged += TextEditorEvents_LineChanged;
+                    }
+                }
+            };
         }
          
+        TextEditorEvents CurrentTextEditorEvents { get; set; } = null;
+        CommandEvents ExecuteCommandEvents { get; set; } = null;
+
+        private void TextEditorEvents_LineChanged(EnvDTE.TextPoint StartPoint, EnvDTE.TextPoint EndPoint, int Hint)
+        {
+            var _applicationObject = ServiceProvider.GetService(typeof(EnvDTE.DTE)) as EnvDTE80.DTE2;
+            WriteDayWorkingHistory($"Changed : {_applicationObject.ActiveWindow.Caption}");
+            //Debug.WriteLine($"LineChanged : {DateTime.Now} {_applicationObject.ActiveWindow.Caption}, {StartPoint?.Line??-1}");
+        }
+
+        private void VSPackage_BeforeExecute(string Guid, int ID, object CustomIn, object CustomOut, ref bool CancelDefault)
+        {
+            var _applicationObject = ServiceProvider.GetService(typeof(EnvDTE.DTE)) as EnvDTE80.DTE2;
+            WriteDayWorkingHistory($"Execute:{_applicationObject.ActiveWindow.Caption}");
+            //Debug.WriteLine($"BeforeExecute : {DateTime.Now} {_applicationObject.ActiveWindow.Caption}");
+        }
+
+        private void VSPackage_AfterExecute(string Guid, int ID, object CustomIn, object CustomOut)
+        {
+            var _applicationObject = ServiceProvider.GetService(typeof(EnvDTE.DTE)) as EnvDTE80.DTE2;
+            WriteDayWorkingHistory($"{_applicationObject.ActiveWindow.Caption}");
+            //Debug.WriteLine($"AfterExecute : {DateTime.Now} {_applicationObject.ActiveWindow.Caption}");
+        }
+          
+        internal static readonly string __ROOT_HIST_DIR = _DRIVE + @"JSFW\SourceEditingHistory\";
+
+        void WriteDayWorkingHistory(string caption )
+        { 
+            DateTime now = DateTime.Now;
+            string today = $"{now:yyyyMMdd}";
+            string timeMinute = $"{now:HHmm}";
+            string workTime_Minute = $"{now:yyyy-MM-dd HH:mm:00}";
+
+            if (Directory.Exists(__ROOT_HIST_DIR) == false)
+            {
+                Directory.CreateDirectory(__ROOT_HIST_DIR);
+            }
+
+            using (var db = new LiteDatabase($@"{__ROOT_HIST_DIR}{today}.db"))
+            {
+                var days = db.GetCollection<DayWorkContent>();
+                //string min = days.Min(pk => pk.WorkTime_Minute);
+                //string max = days.Max(pk => pk.WorkTime_Minute); 
+                DayWorkContent w = days.FindOne(pk => pk.WorkTime_Minute == workTime_Minute);
+                if (w == null)
+                {
+                    w = new DayWorkContent()
+                    {
+                        WorkTime_Minute = workTime_Minute,
+                        IP = GetIP(),
+                        ProjectName = GetDataBaseInfo(),
+                        FileName = caption,
+                    };
+                    days.Insert(w);
+                }
+                //days.Update(w);
+            }
+        }
+        
+        private static string GetDataBaseInfo()
+        {
+            // 메소드 소스원본 => ObjectFindForm.cs에 GetDataBaseSqlConnectionString() 메소드를 변경함.
+
+            string dbInfo;
+            Microsoft.SqlServer.Management.UI.VSIntegration.Editors.IScriptFactory scriptFactory = ServiceCache.ScriptFactory;
+            Microsoft.SqlServer.Management.UI.VSIntegration.Editors.CurrentlyActiveWndConnectionInfo connectionIfno = scriptFactory.CurrentlyActiveWndConnectionInfo;
+            Microsoft.SqlServer.Management.Smo.RegSvrEnum.UIConnectionInfo uConnectionInfo = connectionIfno.UIConnectionInfo;
+
+            //ServerConnection serverConnection = new ServerConnection();
+            //Server server = new Server(serverConnection);
+            //string serverName = server.Name;
+            //string databaseName = serverConnection.DatabaseName;
+            //string userID = serverConnection.Login;
+            //string password = serverConnection.Password;
+
+            //string authMode = server.Settings.LoginMode.ToString();
+
+            //if (authMode == "WindowsAuthentication")
+            //{
+
+            //}
+            //string connet = string.Format("{0}::{1}", serverName, databaseName);
+
+            // VSIntergration.dll삭제,  SqlPackageBase.dll이 4.0 런타임 이므로 프로젝트 자체를 4.0으로 변경.
+            var conn = uConnectionInfo;//  ServiceCache.ScriptFactory.CurrentlyActiveWndConnectionInfo.UIConnectionGroupInfo;
+                                       //if (conn.Count > 0)
+                                       //{
+                                       //    if (conn[0].AdvancedOptions.AllKeys.Contains("DATABASE") &&
+                                       //        conn[0].AdvancedOptions.Count > 6)
+                                       //    { 
+                                       //CreatedWindow.Caption = string.Format(string.Format("S:{0},U:{1},P:{2},D:{3}", conn[0].ServerName, conn[0].UserName, conn[0].Password, conn[0].AdvancedOptions[6]));
+                                       //string sqlConnectionString = string.Format(string.Format("Server={0};DataBase={3};UID={1};PWD={2};", serverName, userID, password, databaseName));
+
+            dbInfo = string.Format("Server={0};DataBase={1}",conn.ServerName, conn.AdvancedOptions["DATABASE"]);
+
+            // AuthenticationType = 0 : Windows 인증
+            // AuthenticationType = 1 : SQL Server Authentication
+            if (conn.AuthenticationType != 1)
+            {
+                //Integrated Security, 기본값 false
+                //         : false 이면 SQL Server 인증방식을 사용하여 연결시에 사용자의 ID 와 암호를 지정하여야 한다. 
+                //         : true  이면 Windows 인증을 사용한다
+                dbInfo = $"Server={conn.ServerName};Initial Catalog={conn.AdvancedOptions["DATABASE"]}";
+            }
+            return dbInfo;
+        }
+
+        private string GetIP()
+        {
+            string ipAddr = "";
+            string hostName = Dns.GetHostName();
+            IPAddress[] addresses = Dns.GetHostAddresses(hostName);
+
+            foreach (IPAddress ip in addresses)
+            {
+                if (ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
+                {
+                    ipAddr = $"{ip}";
+                    break; // 첫 번째 유효한 IP만 출력
+                }
+            }
+            return ipAddr;
+        }
+
+
         private void ResetKeyBinding_QuickLunch()
         {
             /*
@@ -450,6 +610,11 @@ namespace JSFW.SSMS.Extensibility
             if (textDoc != null)
             {
                 var _applicationObject = ServiceProvider.GetService(typeof(EnvDTE.DTE)) as EnvDTE80.DTE2;
+
+                if (CurrentTextEditorEvents != null) CurrentTextEditorEvents.LineChanged -= TextEditorEvents_LineChanged;
+                CurrentTextEditorEvents = _applicationObject.Events.TextEditorEvents[textDoc];
+                CurrentTextEditorEvents.LineChanged += TextEditorEvents_LineChanged;
+
                 StringBuilder sb = new StringBuilder();
                 string keys = "";
                 foreach (EnvDTE.Command cmd in _applicationObject.Commands)
@@ -688,5 +853,16 @@ namespace JSFW.SSMS.Extensibility
             }
         }
         #endregion
+    }
+     
+    public class DayWorkContent
+    {
+        [BsonId]
+        public string WorkTime_Minute { get; set; }
+
+        public string IP { get; set; }
+
+        public string ProjectName { get; set; }
+        public string FileName { get; set; }
     }
 }

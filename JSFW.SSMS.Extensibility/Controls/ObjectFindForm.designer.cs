@@ -193,11 +193,11 @@
             this.cboFindText.Name = "cboFindText";
             this.cboFindText.Size = new System.Drawing.Size(121, 20);
             this.cboFindText.TabIndex = 5;
+            this.cboFindText.PreviewKeyDown += new System.Windows.Forms.PreviewKeyDownEventHandler(this.cboFindText_PreviewKeyDown);
             // 
             // ObjectFindForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
             this.ClientSize = new System.Drawing.Size(226, 465);
             this.Controls.Add(this.cboFindText);
             this.Controls.Add(this.splitContainer1);

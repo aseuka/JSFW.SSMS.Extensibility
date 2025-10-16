@@ -155,3 +155,15 @@ Windows Registry Editor Version 5.00
 	# 테이블 및 컬럼 설명 수정 기능 추가
 		MS_DESCRIPTION 변경 기능 수정.
 
+	# 일일 코딩 이력 남기기 ( from vs Extension )
+		- 디버깅이 안걸리는 현상은 :: 확장 폴더에 경로가 바뀌어 로딩이 안된것.. ( ssms위치경로를 확인하여 프로젝트 속성에 VSIX 에 copy경로를 ssms와 맞춰줄것! )
+		- LiteDB를 누겟으로 추가! 
+		- {일자}.db로 vs에서 코딩을 할때마다 분단위로 이력을 남기는데... 
+		- ssms도 VSPackage.cs에 보면 두 프로퍼티를 생성하고 초기화 중 할당하여 F5실행과 텍스트 수정시 변경 이벤트를 통해 분단위로 이력을 남긴다.
+			TextEditorEvents CurrentTextEditorEvents { get; set; } = null;
+			CommandEvents ExecuteCommandEvents { get; set; } = null;
+		* _applicationObject.Events.WindowEvents.WindowActivated += (win1, win2) 이벤트로 현재 ActiveWindow 인 win1에 LineChanged 이벤트를 추가로 걸어서 
+		 필요한 기능을 추가했다.
+
+
+
